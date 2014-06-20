@@ -109,7 +109,9 @@ module CIL-SYNTAX
 
   syntax Exps ::= List{Exp,","}   [strict]
 
-  syntax TypeOrExp ::= Type | Exp
+  syntax TypeOrExp ::= Type[klabel(TypeOrExpOfType)]
+	             | Exp[prefer, klabel(TypeOrExpOfExp)]
+  syntax Type ::= "typename" Type [bracket]
   syntax Var ::= CId
   syntax Field ::= CId
 

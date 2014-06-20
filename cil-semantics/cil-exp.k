@@ -220,7 +220,7 @@ module CIL-EXP
 
   syntax KItem ::= "noLeftValueConversion"
 
-  syntax KItem ::= Type [avoid]
+  // syntax KItem ::= Type [avoid] // seems to break parsing
 
   rule I:Int => norm(int, I)
 
