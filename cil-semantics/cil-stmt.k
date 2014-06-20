@@ -290,7 +290,7 @@ module CIL-STMT
     ...</fun>
   [computational]
 
-  syntax Stmt ::= TypedValue ";"
+  syntax Stmt ::= TypedValue ";" [klabel(TypedValueSemiStmt)]
   rule tv(_, _) ; => .
 
   rule 

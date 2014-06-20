@@ -248,7 +248,7 @@ module CIL-COMMON-MMU
   syntax KItem ::= "load" "(" Type "," Ptr ")"
                  | "$load" "(" Type "," Ptr "," K ")"             [strict(3)]
                  | "$load" "(" Type "," Ptr "," Int "," List ")"
-                 | "store" "(" Type "," Ptr "," Value ")"
+                 | "store" "(" Type "," Ptr "," Value ")" [klabel(storeKItem)] // used to collide with operation in arrays.k
                  | "$store" "(" Ptr "," List ")"
 
   rule 

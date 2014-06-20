@@ -27,7 +27,7 @@ module CIL-SYNTAX
 
   syntax TypedefDecl ::= "typedef" DeclSpecs Declarator ";"
 
-  syntax FunDef ::= DeclSpecs Declarator FunBody 
+  syntax FunDef ::= DeclSpecs Declarator FunBody [klabel(FunDef)] 
 
   syntax FunBody ::= "{" VarDecls Block "}"   [avoid]
                    | Block
@@ -74,12 +74,12 @@ module CIL-SYNTAX
     | "(" Exp ")" [bracket]
     | Exp "." Field
     | Exp "->" Field
-    | Exp "[" Exp "]"
+    | Exp "[" Exp "]" // used to collied with DirectAbsDecl and DirectDecl
     > "-" Exp [strict]
     | "+" Exp [strict]
     | "!" Exp
     | "~" Exp [strict]
-    | "*" Exp [strict]
+    | "*" Exp [strict] // used to collide with Pointer
     | "&" Exp [strict]
     | sizeof(TypeOrExp) [prefer]
     > "(" Type ")" Exp [strict, prefer]
@@ -195,7 +195,7 @@ module CIL-SYNTAX
   syntax Stmts ::= List{Stmt, ""}
   syntax Instr ::= Exp "=" Exp ";"       [strict(2)]
                  | Exp "=" FunCall ";"   [strict(2), prefer]
-                 | FunCall ";"            [strict]
+                 | FunCall ";"            [strict] // used to collide with Stmt
 
   // TODO(AndreiS): are these part of CIL?
   syntax Instr ::= Exp "++" ";"
@@ -223,7 +223,7 @@ module CIL-SYNTAX
   rule X:Exp ^= E:Exp ; => X = X ^ E ; [macro]
 
   syntax FunCall ::= Exp "(" Exps ")"   [klabel('call), strict(2)]
-  syntax Block ::= "{" Stmts "}"
+  syntax Block ::= "{" Stmts "}" // used to collide with Initializer
   syntax Label ::= CId
                  | "case" Exp
                  | "default"
@@ -265,14 +265,14 @@ module CIL-SYNTAX
   //     function-specifier      declaration-specifiers?
   //     alignment-specifier     declaration-specifiers?
   syntax DeclSpecs ::=
-      StorageClassSpec TypeSpec
-    | StorageClassSpec TypeSpec TypeQual [prefer]
-    | StorageClassSpec TypeQual TypeSpec
+      StorageClassSpec TypeSpec [klabel(DeclSpecsClassSpec)]
+    | StorageClassSpec TypeSpec TypeQual [prefer,klabel(DeclSpecsClassSpecQual)] 
+    | StorageClassSpec TypeQual TypeSpec [klabel(DeclSpecsClassQualSpec)]
     | StorageClassSpec TypeQual TypeSpec TypeQual [prefer]
     | TypeSpec
-    | TypeSpec TypeQual [prefer]
-    | TypeQual TypeSpec
-    | TypeQual TypeSpec TypeQual [prefer]
+    | TypeSpec TypeQual [prefer,klabel(DeclSpecsSpecQual)]
+    | TypeQual TypeSpec [klabel(DeclSpecsQualSpec)]
+    | TypeQual TypeSpec TypeQual [prefer,klabel(DeclSpecsQualSpecQual)]
   rule SC:StorageClassSpec _:TypeQual TS:TypeSpec => SC TS [macro]
   rule SC:StorageClassSpec TS:TypeSpec _:TypeQual => SC TS [macro]
   rule SC:StorageClassSpec _:TypeQual TS:TypeSpec _:TypeQual => SC TS [macro]
@@ -347,7 +347,7 @@ module CIL-SYNTAX
   //     pointer? direct-declarator
   syntax Declarator ::=
       DirectDecl 
-    | Pointer DirectDecl
+    | Pointer DirectDecl [klabel(DeclaratorPointerDirectDecl)]
 
   // direct-declarator
   //     identifier
@@ -360,11 +360,11 @@ module CIL-SYNTAX
   //     direct-declarator ( identifier-list? )
   syntax DirectDecl ::=
       CId
-    | "(" Declarator ")"
-    | DirectDecl "(" ")" [prefer]
-    | DirectDecl "[" "]" [prefer]
-    | DirectDecl "(" Params ")"
-    | DirectDecl "[" Constant "]"
+    | "(" Declarator ")" [klabel(ParensDirectDecl)]
+    | DirectDecl "(" ")" [prefer,klabel(FunVoidDirectDecl)]
+    | DirectDecl "[" "]" [prefer,klabel(ArrayDirectDecl)]
+    | DirectDecl "(" Params ")" [klabel(FunDirectDecl)]
+    | DirectDecl "[" Constant "]" [klabel(ArrayConstDirectDecl)]
   
   // TODO(chathhorn): type qualifiers.
   // pointer
@@ -372,8 +372,8 @@ module CIL-SYNTAX
   //      * type-qualifier-list? pointer
   syntax Pointer ::=
       "*"
-    | "*" TypeQual
-    | "*" Pointer
+    | "*" TypeQual [klabel(StarTypeQualPointer)]
+    | "*" Pointer  [klabel(StarPointerPointer)]
     | "*" TypeQual Pointer
   rule * _:TypeQual => * [macro]
   rule * _:TypeQual P:Pointer => * P [macro]
@@ -399,8 +399,8 @@ module CIL-SYNTAX
   //     declaration-specifiers abstract-declarator?
   syntax ParamDecl ::=
       DeclSpecs
-    | DeclSpecs Declarator
-    | DeclSpecs AbsDecl [prefer]
+    | DeclSpecs Declarator [klabel(ParamDeclDeclSpecsDeclarator)]
+    | DeclSpecs AbsDecl [prefer,klabel(ParamDeclDeclSpecsAbsDecl)]
 
   // Abstract declarators are declarators without identifiers, optionally used
   // in function parameter list declarations.
@@ -411,7 +411,7 @@ module CIL-SYNTAX
   syntax AbsDecl ::=
       Pointer
     | DirectAbsDecl
-    | Pointer DirectAbsDecl
+    | Pointer DirectAbsDecl [klabel(AbsDeclPointerDirectAbsDecl)]
   
   // direct-abstract-declarator
   //     ( abstract-declarator )
@@ -424,19 +424,19 @@ module CIL-SYNTAX
       "(" ")" [prefer]
     | "[" "]" [prefer]
     | "(" AbsDecl ")" [avoid]
-    | "(" Params ")"
+    | "(" Params ")" [klabel(ParensDirectAbsDecl)]
     | "[" Constant "]"
-    | DirectAbsDecl "(" ")" [prefer]
-    | DirectAbsDecl "[" "]" [prefer]
-    | DirectAbsDecl "(" Params ")"
-    | DirectAbsDecl "[" Constant "]"
+    | DirectAbsDecl "(" ")" [prefer,klabel(FunVoidDirectAbsDecl)]
+    | DirectAbsDecl "[" "]" [prefer,label(ArrayDirectAbsDecl)]
+    | DirectAbsDecl "(" Params ")" [klabel(FunDirectAbsDecl)]
+    | DirectAbsDecl "[" Constant "]" [klabel(ArrayConstDirectAbsDecl)]
   
   // initializer
   //     assignment-expression
   //     { initializer-list }
   //     { initializer-list , }
   // In CIL these should just be constants or constants with a cast.
-  syntax Initializer ::= Exp | "{" Initializers "}"
+  syntax Initializer ::= Exp | "{" Initializers "}" [klabel(InitGroup)]
   syntax Initializers ::= List{Initializer, ","}
 
   // TODO(AndreiS): remove hask for getting the result
